@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-#!/usr/bin/env python
-
 import twitter
 import tkinter as tk
 from tkinter import font as tkfont
@@ -11,12 +9,20 @@ from tkinter import ttk
 class SampleApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+
         #Secret key variable !
-        # self.consumer_key
-        # self.consumer_secret
-        # self.access_token
-        # self.access_token_secret
-        #Secret key variable !
+        self.consumer_key =0
+        self.consumer_secret =0
+        self.access_token =0
+        self.access_token_secret =0
+        # Secret key variable !
+
+        # User info
+        self.user_id = 0
+        self.user_location = 0
+        self.username = 0
+
+
         self.args = []
         #self.iconbitmap('mc_vrt_opt_pos_63_1x.ico')
         self.title_font = tkfont.Font(family='Helvetica', size=18, weight="bold", slant="italic")
@@ -149,25 +155,113 @@ class PageOne(Page):
         entry4.grid(row=5, column=1, sticky='EW')
 
                 # load defaults
-        if os.path.isfile('data.txt'):
-            with open("data.txt",'r') as file:
-                e, lines = [entry1, entry2, entry3], file.readlines()
+        if os.path.isfile('usrdata.cache'):
+            with open("usrdata.cache",'r') as file:
+                e, lines = [entry1, entry2, entry3, entry4], file.readlines()
                 [self.set_text(e[l], lines[l][:-1]) for l in range(len(lines))]
 
-        # Row 4 w/ Check mark
-        label5 = tk.Label(self,
-                          text="Assume Group names contain desired number? : ",
-                          anchor='w')
-        #Check = tk.Checkbutton(self, text='Assume?', variable=boolvar)
-        #Check.select()
 
-        #Check.grid(row=5, column=2, sticky='E')
-        label5.grid(row=5, column=0, columnspan=2, sticky='EW')
 
         # Enter button
-        button5 = tk.Button(self, text="Enter info",
-                            command=lambda: self.pfeed([entry1.get(), entry2.get(), entry3.get(), boolvar.get()]))
+        button5 = tk.Button(self, text="Verify info",
+                            command=lambda: self.pfeed([entry1.get(), entry2.get(), entry3.get(), entry4.get()]), self.controller)
         button5.grid(row=6, column=0, columnspan=3, sticky='EW')
+
+    def pfeed(self, lin, controller):
+        confirmation = self.verify(lin, controller)
+        if confirmation:
+            with open("usrdata.cache",'w') as file:
+                [file.write(line+'\n') for line in lin[:-1]]
+            controller.consumer_key = lin[0]
+            controller.consumer_secret = lin[1]
+            controller.access_token = lin[2]
+            controller.access_token_secret = lin[3]
+            controller.user_id = confirmation["id"]
+            controller.user_location = confirmation["location"]
+            controller.username = confirmation["name"]
+            messagebox.showinfo('Confirmation validated', "Your information was validated!")
+            self.controller.show_frame("PageTwo")
+        else:
+            messagebox.showwarning("Warning","Credientials not valid please try again.")
+
+
+
+    def verify(self, lin, controller):
+        # Test data
+        return {"id": 16133, "location": "Philadelphia", "name": "bear"}
+        '''
+        try:
+            controller.api = twitter.Api(consumer_key=consumer_key,
+                      consumer_secret=consumer_secret,
+                      access_token_key=access_token,
+                      access_token_secret=access_token_secret)
+            return controller.api.VerifyCredentials()
+
+        except Exception as ex:
+            messagebox.showwarning("Warning","Exception occured \n Trace:\n %s"%ex)
+        '''
+
+class PageTwo(Page):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.controller = controller
+        self.controller.wm_title("Selection of post details file")
+
+    def load(self):
+
+        # Row 1:
+        label1 = tk.Label(self, text="The excel file (.xlsx)",
+                          anchor='w')
+        entry1 = tk.Entry(self)
+        button1 = tk.Button(self, text="Browse",
+                            command=lambda: self.set_text(entry1,
+                                                          self.frequest()))
+        # Attach
+        label1.grid(row=2, column=0, sticky='EW')
+        entry1.grid(row=2, column=1, sticky='EW')
+        button1.grid(row=2, column=2, sticky='EW')
+
+        # load defaults
+        if os.path.isfile('data.txt'):
+            with open("data.txt",'r') as file:
+                e, lines = [entry1], file.readlines()
+                [self.set_text(e[l], lines[l][:-1]) for l in range(len(lines))]
+                    
+        self.controller.bot = Excel_bot(self.controller.argv)
+        self.controller.ebot = self.controller.bot.wb
+        label = ttk.Label(self,
+            text="Please select one the available sheets to pull data from:",
+            anchor='w')
+        self.listbox = ttk.Combobox(self,
+            values=self.controller.ebot.get_sheet_names(),
+            state='readonly')
+
+
+        button = tk.Button(self, text="continue",
+                            command=lambda: self.contincheck())
+        
+
+        button.grid(row=3, column=1, sticky='EW')
+        label.grid(row=1, column=0, sticky='EW', columnspan=3)
+        self.listbox.grid(row=2, column=0, sticky='EW', columnspan=3)
+
+    def contincheck(self):
+        if self.listbox.get():
+            self.controller.sheetname = self.listbox.get()
+            self.controller.show_frame("PageThree")
+        else:
+            messagebox.showwarning("Warning","No sheet specified")
+
+    def pfeed(self, lin):
+        if all([os.path.isfile(l) for l in lin[:-1]]):
+            with open("data.txt",'w') as file:
+                [file.write(line+'\n') for line in lin[:-1]]
+            self.controller.argv = lin
+            self.controller.show_frame("PageTwo")
+        else:
+            messagebox.showwarning("Warning","A file was not present")
+
 
 
 '''
